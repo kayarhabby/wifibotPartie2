@@ -10,10 +10,12 @@ class Wifibot {
 private:
 	Order m_order;
 	std::thread* m_p_thread;
+	std::thread* m_p_thread_recv;
 	bool m_stop;
 	Socket_TCP m_socket;
 	char m_output_buf[9];
 	unsigned char trame_crc[6];
+    int current_battery_level; // Niveau de batterie de la roue gauche
 	
 
 public:
@@ -25,7 +27,10 @@ public:
 	void turn(int direction);
 	void rotate(int direction);
 	void connect(std::string ip);
+	void receiveDataFromChassis();
 	void disconnect();
+    int get_battery_level() const; // Méthode pour récupérer la batterie
+
 	
 
 

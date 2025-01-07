@@ -10,7 +10,9 @@ Wifibot::Wifibot():
 	m_order(),
 	m_stop(false),
 	m_p_thread (NULL),
-	m_socket()
+	m_p_thread_recv (NULL),
+	m_socket(),
+   	current_battery_level(0)
 {
 }
 
@@ -118,16 +120,103 @@ void Wifibot::run(){
 void Wifibot::connect(string ip){
 	m_socket.open(ip,PORT);
 	cout << "Wifibot connect()" << endl;
-	if (m_socket.is_open()) m_p_thread=new thread([this]() { this->run(); });
+	if (m_socket.is_open()) {
+          m_p_thread=new thread([this]() { this->run(); });
+          m_p_thread_recv=new thread([this]() { this->receiveDataFromChassis(); });
+    }
 }
+
+void Wifibot::receiveDataFromChassis(){
+
+  int sizeTable = 21;
+  char p_data[sizeTable];
+  unsigned char trame_crc[19]; // récupération de la trame crc pour calcule et comparaison
+  short crc;
+  struct Data {
+    int Speed;       // Vitesse avant
+    unsigned char BatLevel;         // Niveau de batterie
+    unsigned char IR;               // Capteur infrarouge 1
+    unsigned char IR2;              // Capteur infrarouge 2
+    long odometry;        // Odométrie
+};
+
+Data* dataL = new Data();  // Allocation dynamique pour dataL
+Data* dataR = new Data();  // Allocation dynamique pour dataR
+
+  while (m_stop==false) {
+	m_socket.receive(p_data, sizeTable) ;
+
+        for(int i=0; i<19; i++){
+            trame_crc[i] = (unsigned char) p_data[i];
+        }
+
+        crc=crc16(trame_crc,19);
+        // affiche crc
+        cout << "CRC calculé : " << crc << endl;
+
+        // affiche crc reçu
+        cout << "CRC reçu : " << (p_data[20] << 8) + p_data[19] << endl;
+
+        if(crc != (p_data[20] << 8) + p_data[19]){
+            cout << "Erreur CRC" << endl;
+            continue;
+        }else{
+            cout << "CRC OK" << endl;
+            // Données reçues de la roue gauche
+        	dataL->Speed = (int)((p_data[1] << 8) + p_data[0]);
+			if (dataL->Speed > 32767) dataL->Speed=dataL->Speed-65536;
+
+        	dataL->BatLevel = (unsigned char) (p_data[2]);
+            current_battery_level = dataL->BatLevel;
+        	dataL->IR = (unsigned char) (p_data[3]);
+        	dataL->IR2 = (unsigned char) (p_data[4]);
+        	dataL->odometry = (long)((p_data[8] << 24) + (p_data[7] << 16) + (p_data[6] << 8) + p_data[5]);
+
+        	// Données reçues de la roue droite
+        	dataR->Speed = (int)((p_data[10] << 8) + p_data[9]);
+        	if (dataR->Speed > 32767) dataR->Speed=dataR->Speed-65536;
+
+        	dataR->BatLevel = 0;
+        	dataR->IR = (unsigned char) (p_data[11]);
+        	dataR->IR2 = (unsigned char) (p_data[12]);
+        	dataR->odometry = (long)((p_data[16] << 24) + (p_data[15] << 16) + (p_data[14] << 8) + p_data[13]);
+
+           // affiche dataL
+             cout << "Speed L : " << dataL->Speed << endl;
+             cout << "BatLevel L : " << dataL->BatLevel << endl;
+             cout << "IR L : " << dataL->IR << endl;
+             cout << "IR2 L : " << dataL->IR2 << endl;
+             cout << "Odometry L : " << dataL->odometry << endl;
+
+           // affiche dataR
+             cout << "Speed R : " << dataR->Speed << endl;
+             cout << "BatLevel R : " << dataR->BatLevel << endl;
+             cout << "IR R : " << dataR->IR << endl;
+             cout << "IR2 R : " << dataR->IR2 << endl;
+             cout << "Odometry R : " << dataR->odometry << endl;
+        }
+
+	this_thread::sleep_for(std::chrono::milliseconds(LOOP_TIME));
+  }
+  cout << "Thread [send] : stop !" << endl << endl;
+}
+
+int Wifibot::get_battery_level() const {
+    return current_battery_level; // Remplacez par la logique réelle pour obtenir la batterie
+}
+
 
 void Wifibot::disconnect(){
 	m_stop=true;
 	delete m_p_thread;
 	m_p_thread = NULL;
+	m_p_thread_recv = NULL;
 	m_socket.close();
 
 }
+
+
+
 
 
  short Wifibot::crc16(unsigned char* trame, int longueur){

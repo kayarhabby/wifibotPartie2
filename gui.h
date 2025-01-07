@@ -27,11 +27,13 @@ private:
 	Gtk::Entry m_entree_1;
 	Gtk::Label titre;
 	Gtk::Label fin;
+    Gtk::Label m_label_battery;
 	
 
 public:
 	Gui();
 	~Gui();
+    void time_out();
 
 
 };

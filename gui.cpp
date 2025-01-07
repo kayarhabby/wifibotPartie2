@@ -1,7 +1,6 @@
 #include "gui.h"
 
 
-
 Gui::Gui():
 	m_robot (),
 	m_bouton_1 ("Connexion"),
@@ -15,9 +14,9 @@ Gui::Gui():
 	m_entree_1 (),
 	titre ("WIFIBOT CONTROL"),
 	fin ("COPYRIGHT 2023")
-	
-	
+
 {
+
 	Gtk::HBox* m_hbox_1=Gtk::manage(new Gtk::HBox(false,20));
 	Gtk::HBox* m_hbox_2=Gtk::manage(new Gtk::HBox(false,20));
 	Gtk::HBox* m_hbox_debut=Gtk::manage(new Gtk::HBox(false,20));
@@ -71,11 +70,17 @@ Gui::Gui():
 	m_hbox_2->pack_start(*tableau);
 	
 	m_vbox->add(*m_hbox_2);
-	m_vbox->add(*m_hbox_fin);	
+	m_vbox->add(*m_hbox_fin);
+
+    m_label_battery.set_text("Batterie : N/A"); // Valeur initiale
+	m_hbox_fin->pack_start(m_label_battery);   // Ajout dans une boîte existante
+
 	
 	this->add(*m_vbox);
 
 	this->show_all();
+//	Glib::signal_timeout().connect(sigc::mem_fun(*this, &Gui::time_out), 400);
+
 
 	m_bouton_1.signal_clicked().connect([this]() { 
 		std::string adresse=m_entree_1.get_text();
@@ -110,7 +115,12 @@ Gui::Gui():
 	m_bouton_stop.signal_clicked().connect([this]() { 
 		m_robot.stop();
 	} );
+Glib::signal_timeout().connect(sigc::mem_fun(*this,&Gui::time_out),400);
+}
 
+void Gui::time_out() {
+    int battery_level = m_robot.get_battery_level(); // Méthode fictive pour récupérer la batterie
+    m_label_battery.set_text("Batterie : " + std::to_string(battery_level));
 }
 
 
